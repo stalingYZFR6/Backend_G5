@@ -1,38 +1,44 @@
 // Importar las dependencias necesarias
-import express from 'express';
-import cors from 'cors';
+import express from "express";
+import cors from "cors";
 
 // Importar las rutas
-import rutasEmpleados from './src/routes/empleado.routes.js';
-import rutasAdministradores from './src/routes/administrador.routes.js';
-import rutasTurnos from './src/routes/turnos.routes.js';
-import rutasRegistroAsistencia from './src/routes/registroAsistencia.routes.js';
-import rutasIncidencias from './src/routes/incidencias.routes.js';
+import rutasEmpleados from "./src/routes/empleados.routes.js";
+import rutasRoles from "./src/routes/roles.routes.js";
+import rutasTurnos from "./src/routes/turnos.routes.js";
+import rutasRegistroAsistencia from "./src/routes/registro_asistencia.routes.js";
+import rutasIncidencias from "./src/routes/incidencias.routes.js";
+import rutasAdministradores from "./src/routes/administradores.routes.js";
+import rutasBitacora from "./src/routes/bitacora.routes.js";
 
 // Crear la aplicación de Express
 const app = express();
 
 // Habilitar CORS para cualquier origen
-app.use(cors({
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type'],
-}));
+app.use(
+  cors({
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type"],
+  })
+);
 
 // Middleware para parsear el cuerpo de las solicitudes
-app.use(express.json({ limit: '10mb' })); // 10 MB
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(express.json({ limit: "10mb" })); // 10 MB
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 // Rutas
-app.use('/api/empleados', rutasEmpleados);
-app.use('/api/administradores', rutasAdministradores);
-app.use('/api/turnos', rutasTurnos);
-app.use('/api/registro-asistencia', rutasRegistroAsistencia);
-app.use('/api/incidencias', rutasIncidencias);
+app.use("/api", rutasEmpleados);
+app.use("/api", rutasRoles);
+app.use("/api", rutasTurnos);
+app.use("/api", rutasRegistroAsistencia);
+app.use("/api", rutasIncidencias);
+app.use("/api", rutasAdministradores);
+app.use("/api", rutasBitacora);
 
 // Manejo de rutas no encontradas
 app.use((req, res, next) => {
   res.status(404).json({
-    message: 'La ruta que ha especificado no se encuentra registrada.'
+    message: "La ruta que ha especificado no se encuentra registrada.",
   });
 });
 
