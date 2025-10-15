@@ -11,11 +11,11 @@ import {
 const router = Router();
 
 // Rutas de Roles
-router.get("/roles", obtenerRoles);
-router.get("/roles/:id_rol", obtenerRol);
-router.post("/roles", crearRol);
-router.delete("/roles/:id_rol", eliminarRol);
-router.put("/roles/:id_rol", actualizarRol);
-router.patch("/roles/:id_rol", patchRol);
+router.get("/rol", obtenerRoles);
+router.get("/rol/:id_rol", obtenerRol);
+router.post("/rol", crearRol);
+router.delete("/rol/:id_rol", eliminarRol);
+router.put("/rol/:id_rol", actualizarRol);
+router.patch("/rol/:id_rol", patchRol);
 
 export default router;

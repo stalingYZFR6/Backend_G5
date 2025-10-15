@@ -6,7 +6,7 @@ export const pool = createPool({
     user: DB_USER,
     password: DB_PASSWORD,
     port: DB_PORT,
-    database: "BDESRH_bakenversion"
+    database: "BD_backend"
 
 });
     

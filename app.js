@@ -8,8 +8,8 @@ import rutasRoles from "./src/routes/roles.routes.js";
 import rutasTurnos from "./src/routes/turnos.routes.js";
 import rutasRegistroAsistencia from "./src/routes/registro_asistencia.routes.js";
 import rutasIncidencias from "./src/routes/incidencias.routes.js";
-import rutasAdministradores from "./src/routes/administradores.routes.js";
 import rutasBitacora from "./src/routes/bitacora.routes.js";
+import rutasUsuarios from "./src/routes/usuarios.routes.js";
 
 // Crear la aplicación de Express
 const app = express();
@@ -32,8 +32,8 @@ app.use("/api", rutasRoles);
 app.use("/api", rutasTurnos);
 app.use("/api", rutasRegistroAsistencia);
 app.use("/api", rutasIncidencias);
-app.use("/api", rutasAdministradores);
 app.use("/api", rutasBitacora);
+app.use("/api", rutasUsuarios)
 
 // Manejo de rutas no encontradas
 app.use((req, res, next) => {

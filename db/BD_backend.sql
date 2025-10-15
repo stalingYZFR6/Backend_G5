@@ -1,12 +1,14 @@
-
 -- Crear la base de datos
-CREATE DATABASE BDESRH_bakenversion;
-USE BDESRH_bakenversion;
+CREATE DATABASE IF NOT EXISTS BD_backend;
+USE BD_backend;
+
+-- Verificar la versión de MySQL
+SELECT VERSION();
 
 -- Crear tabla Rol
 CREATE TABLE Rol (
     id_rol INT PRIMARY KEY AUTO_INCREMENT,
-    nombre VARCHAR(20) NOT NULL UNIQUE
+    nombre VARCHAR(25) NOT NULL UNIQUE
 );
 
 -- Crear tabla Empleado
@@ -14,20 +16,21 @@ CREATE TABLE Empleado (
     id_empleado INT PRIMARY KEY AUTO_INCREMENT,
     nombre VARCHAR(50) NOT NULL,
     apellido VARCHAR(50) NOT NULL,
-    cedula VARCHAR(20) NOT NULL UNIQUE,
+    cedula VARCHAR(18) NOT NULL UNIQUE,
     correo VARCHAR(100),
-    telefono VARCHAR(20),
-    direccion VARCHAR(200),
+    telefono VARCHAR(12),
+    direccion VARCHAR(90),
     id_rol INT NOT NULL,
     FOREIGN KEY (id_rol) REFERENCES Rol(id_rol)
 );
 
--- Crear tabla Administrador
-CREATE TABLE Administrador (
-    id_administrador INT PRIMARY KEY AUTO_INCREMENT,
+-- Crear tabla Usuario
+CREATE TABLE Usuario (
+    id_usuario INT PRIMARY KEY AUTO_INCREMENT,
     id_empleado INT NOT NULL UNIQUE,
     login VARCHAR(50) NOT NULL UNIQUE,
-    password VARCHAR(256) NOT NULL, -- Ampliado para hash seguro
+    password VARCHAR(256) NOT NULL,
+    rol_aplicacion ENUM('cajero', 'admin', 'supervisor') NOT NULL DEFAULT 'cajero',
     ultima_actividad DATETIME,
     FOREIGN KEY (id_empleado) REFERENCES Empleado(id_empleado)
 );
@@ -70,11 +73,10 @@ CREATE TABLE Incidencias (
 CREATE TABLE Bitacora (
     id_bitacora INT AUTO_INCREMENT PRIMARY KEY,
     tabla_afectada VARCHAR(50) NOT NULL,
-    id_registro INT NOT NULL,
     tipo_cambio VARCHAR(20) NOT NULL,
     usuario VARCHAR(50) NOT NULL,
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    detalles TEXT, -- Agregado para registrar detalles de cambios
+    detalles TEXT,
     CONSTRAINT chk_tipo_cambio CHECK (tipo_cambio IN ('INSERT', 'UPDATE', 'DELETE'))
 );
 
@@ -84,26 +86,58 @@ CREATE INDEX idx_registro_asistencia_id_empleado ON Registro_Asistencia(id_emple
 CREATE INDEX idx_incidencias_id_empleado ON Incidencias(id_empleado);
 CREATE INDEX idx_turnos_id_empleado ON Turnos(id_empleado);
 
+-- Crear usuarios con privilegios
+CREATE USER IF NOT EXISTS 'gerson'@'localhost' IDENTIFIED BY 'gerson123';
+GRANT ALL PRIVILEGES ON BD_backend.* TO 'gerson'@'localhost';
+
+CREATE USER IF NOT EXISTS 'staling'@'localhost' IDENTIFIED BY 'staling123';
+GRANT SELECT, INSERT, UPDATE ON BD_backend.* TO 'staling'@'localhost';
+
+CREATE USER IF NOT EXISTS 'magdi'@'localhost' IDENTIFIED BY 'magdi123';
+GRANT SELECT ON BD_backend.* TO 'magdi'@'localhost';
+
+-- Aplicar cambios de privilegios
+FLUSH PRIVILEGES;
+
+-- Crear roles y asignar privilegios
+CREATE ROLE 'admin', 'cajero', 'supervisor';
+GRANT ALL PRIVILEGES ON *.* TO 'admin';
+GRANT SELECT, INSERT, UPDATE ON BD_backend.* TO 'cajero';
+GRANT SELECT, UPDATE ON BD_backend.Turnos TO 'supervisor';
+
+-- Asignar roles a usuarios
+GRANT 'admin' TO 'gerson'@'localhost';
+SET DEFAULT ROLE 'admin' FOR 'gerson'@'localhost';
+
+GRANT 'cajero' TO 'staling'@'localhost';
+SET DEFAULT ROLE 'cajero' FOR 'staling'@'localhost';
+
+GRANT 'supervisor' TO 'magdi'@'localhost';
+SET DEFAULT ROLE 'supervisor' FOR 'magdi'@'localhost';
+
+-- Aplicar cambios de privilegios
+FLUSH PRIVILEGES;
+
 -- Insertar roles posibles
 INSERT INTO Rol (nombre) VALUES
-    ('empleado'),
-    ('administrador'),
-    ('servicio al cliente'),
     ('cajero'),
-    ('mantenimiento');
+    ('admin'),
+    ('supervisor');
 
 -- Inserciones en Empleado
 INSERT INTO Empleado (nombre, apellido, cedula, correo, telefono, direccion, id_rol) VALUES
-    ('Juan', 'Pérez', '12345678', 'juan.perez@empresa.com', '123-456-7890', 'Calle 1, Ciudad A', 1),
-    ('María', 'Gómez', '87654321', 'maria.gomez@empresa.com', '234-567-8901', 'Avenida 2, Ciudad B', 2),
-    ('Carlos', 'López', '11223344', 'carlos.lopez@empresa.com', '345-678-9012', 'Calle 3, Ciudad C', 1),
-    ('Ana', 'Martínez', '44332211', 'ana.martinez@empresa.com', '456-789-0123', 'Avenida 4, Ciudad D', 2),
-    ('Luis', 'Rodríguez', '55667788', 'luis.rodriguez@empresa.com', '567-890-1234', 'Calle 5, Ciudad E', 1);
+    ('Gerson', 'Pérez', '12345678', 'gerson.perez@empresa.com', '123-456-7890', 'Calle 1, Ciudad A', 2),
+    ('Staling', 'Gómez', '87654321', 'staling.gomez@empresa.com', '234-567-8901', 'Avenida 2, Ciudad B', 1),
+    ('Magdi', 'López', '11223344', 'magdi.lopez@empresa.com', '345-678-9012', 'Calle 3, Ciudad C', 3),
+    ('Ana', 'Martínez', '44332211', 'ana.martinez@empresa.com', '456-789-0123', 'Avenida 4, Ciudad D', 1),
+    ('Luis', 'Rodríguez', '55667788', 'luis.rodriguez@empresa.com', '567-890-1234', 'Calle 5, Ciudad E', 1),
+    ('Diego', 'Fernández', '66778899', 'diego.fernandez@empresa.com', '678-901-2345', 'Calle 6, Ciudad F', 3);
 
--- Inserciones en Administrador
-INSERT INTO Administrador (id_empleado, login, password, ultima_actividad) VALUES
-    (2, 'maria.gomez', SHA2('pass1234', 256), '2025-04-08 09:15:00'),
-    (4, 'ana.martinez', SHA2('admin2025', 256), '2025-04-07 14:30:00');
+-- Inserciones en Usuario
+INSERT INTO Usuario (id_empleado, login, password, rol_aplicacion, ultima_actividad) VALUES
+    (1, 'gerson', SHA2('gerson123', 256), 'admin', NOW()),
+    (2, 'staling', SHA2('staling123', 256), 'cajero', NOW()),
+    (3, 'magdi', SHA2('magdi123', 256), 'supervisor', NOW());
 
 -- Inserciones en Turnos
 INSERT INTO Turnos (id_empleado, fecha, hora_inicio, hora_fin, tipo_turno) VALUES
@@ -111,7 +145,8 @@ INSERT INTO Turnos (id_empleado, fecha, hora_inicio, hora_fin, tipo_turno) VALUE
     (2, '2025-04-09', '14:00:00', '18:00:00', 'tarde'),
     (3, '2025-04-09', '20:00:00', '00:00:00', 'noche'),
     (4, '2025-04-10', '09:00:00', '17:00:00', 'flexible'),
-    (5, '2025-04-10', '08:00:00', '12:00:00', 'mañana');
+    (5, '2025-04-10', '08:00:00', '12:00:00', 'mañana'),
+    (6, '2025-04-11', '08:00:00', '16:00:00', 'flexible');
 
 -- Inserciones en Registro_Asistencia
 INSERT INTO Registro_Asistencia (id_empleado, id_turno, fecha, hora_entrada, hora_salida, horas_trabajadas) VALUES
@@ -119,7 +154,8 @@ INSERT INTO Registro_Asistencia (id_empleado, id_turno, fecha, hora_entrada, hor
     (2, 2, '2025-04-09', '14:00:00', '18:10:00', 4.17),
     (3, 3, '2025-04-09', '20:00:00', '23:55:00', 3.92),
     (4, 4, '2025-04-10', '09:10:00', '17:00:00', 7.83),
-    (5, 5, '2025-04-10', '08:00:00', '12:05:00', 4.08);
+    (5, 5, '2025-04-10', '08:00:00', '12:05:00', 4.08),
+    (6, 6, '2025-04-11', '08:05:00', '16:00:00', 7.92);
 
 -- Inserciones en Incidencias
 INSERT INTO Incidencias (id_empleado, tipo_incidencia, descripcion, fecha_incidencia) VALUES
@@ -127,7 +163,38 @@ INSERT INTO Incidencias (id_empleado, tipo_incidencia, descripcion, fecha_incide
     (2, 'permiso', 'Cita médica programada', '2025-04-09'),
     (3, 'ausencia', 'No se presentó sin aviso', '2025-04-09'),
     (4, 'retraso', 'Retraso de 10 minutos por lluvia', '2025-04-10'),
-    (5, 'otro', 'Equipo dañado reportado', '2025-04-10');
+    (5, 'otro', 'Equipo dañado reportado', '2025-04-10'),
+    (6, 'permiso', 'Asistencia a curso de capacitación', '2025-04-11');
+
+-- Triggers para Usuario
+DELIMITER //
+CREATE TRIGGER trg_usuario_insert
+AFTER INSERT ON Usuario
+FOR EACH ROW
+BEGIN
+    INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
+    VALUES ('Usuario', 'INSERT', USER(), CONCAT('Se insertó el usuario con id_usuario=', NEW.id_usuario));
+END;
+//
+
+CREATE TRIGGER trg_usuario_update
+AFTER UPDATE ON Usuario
+FOR EACH ROW
+BEGIN
+    INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
+    VALUES ('Usuario', 'UPDATE', USER(), CONCAT('Se actualizó el usuario con id_usuario=', NEW.id_usuario));
+END;
+//
+
+CREATE TRIGGER trg_usuario_delete
+AFTER DELETE ON Usuario
+FOR EACH ROW
+BEGIN
+    INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
+    VALUES ('Usuario', 'DELETE', USER(), CONCAT('Se eliminó el usuario con id_usuario=', OLD.id_usuario));
+END;
+//
+DELIMITER ;
 
 -- Triggers para Empleado
 DELIMITER //
@@ -135,9 +202,8 @@ CREATE TRIGGER trg_empleado_insert
 AFTER INSERT ON Empleado
 FOR EACH ROW
 BEGIN
-    INSERT INTO Bitacora (tabla_afectada, id_registro, tipo_cambio, usuario, detalles)
-    VALUES ('Empleado', NEW.id_empleado, 'INSERT', USER(),
-            CONCAT('nombre=', NEW.nombre, ', apellido=', NEW.apellido, ', cedula=', NEW.cedula));
+    INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
+    VALUES ('Empleado', 'INSERT', USER(), 'Se insertó un empleado');
 END;
 //
 
@@ -145,10 +211,8 @@ CREATE TRIGGER trg_empleado_update
 AFTER UPDATE ON Empleado
 FOR EACH ROW
 BEGIN
-    INSERT INTO Bitacora (tabla_afectada, id_registro, tipo_cambio, usuario, detalles)
-    VALUES ('Empleado', NEW.id_empleado, 'UPDATE', USER(),
-            CONCAT('Antes: nombre=', OLD.nombre, ', apellido=', OLD.apellido, ', rol=', OLD.id_rol,
-                   ' | Después: nombre=', NEW.nombre, ', apellido=', NEW.apellido, ', rol=', NEW.id_rol));
+    INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
+    VALUES ('Empleado', 'UPDATE', USER(), 'Se actualizó un empleado');
 END;
 //
 
@@ -156,43 +220,8 @@ CREATE TRIGGER trg_empleado_delete
 AFTER DELETE ON Empleado
 FOR EACH ROW
 BEGIN
-    INSERT INTO Bitacora (tabla_afectada, id_registro, tipo_cambio, usuario, detalles)
-    VALUES ('Empleado', OLD.id_empleado, 'DELETE', USER(),
-            CONCAT('nombre=', OLD.nombre, ', apellido=', OLD.apellido, ', cedula=', OLD.cedula));
-END;
-//
-DELIMITER ;
-
--- Triggers para Administrador
-DELIMITER //
-CREATE TRIGGER trg_administrador_insert
-AFTER INSERT ON Administrador
-FOR EACH ROW
-BEGIN
-    INSERT INTO Bitacora (tabla_afectada, id_registro, tipo_cambio, usuario, detalles)
-    VALUES ('Administrador', NEW.id_administrador, 'INSERT', USER(),
-            CONCAT('id_empleado=', NEW.id_empleado, ', login=', NEW.login));
-END;
-//
-
-CREATE TRIGGER trg_administrador_update
-AFTER UPDATE ON Administrador
-FOR EACH ROW
-BEGIN
-    INSERT INTO Bitacora (tabla_afectada, id_registro, tipo_cambio, usuario, detalles)
-    VALUES ('Administrador', NEW.id_administrador, 'UPDATE', USER(),
-            CONCAT('Antes: login=', OLD.login, ', ultima_actividad=', OLD.ultima_actividad,
-                   ' | Después: login=', NEW.login, ', ultima_actividad=', NEW.ultima_actividad));
-END;
-//
-
-CREATE TRIGGER trg_administrador_delete
-AFTER DELETE ON Administrador
-FOR EACH ROW
-BEGIN
-    INSERT INTO Bitacora (tabla_afectada, id_registro, tipo_cambio, usuario, detalles)
-    VALUES ('Administrador', OLD.id_administrador, 'DELETE', USER(),
-            CONCAT('id_empleado=', OLD.id_empleado, ', login=', OLD.login));
+    INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
+    VALUES ('Empleado', 'DELETE', USER(), 'Se eliminó un empleado');
 END;
 //
 DELIMITER ;
@@ -203,9 +232,8 @@ CREATE TRIGGER trg_turnos_insert
 AFTER INSERT ON Turnos
 FOR EACH ROW
 BEGIN
-    INSERT INTO Bitacora (tabla_afectada, id_registro, tipo_cambio, usuario, detalles)
-    VALUES ('Turnos', NEW.id_turno, 'INSERT', USER(),
-            CONCAT('id_empleado=', NEW.id_empleado, ', fecha=', NEW.fecha, ', tipo_turno=', NEW.tipo_turno));
+    INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
+    VALUES ('Turnos', 'INSERT', USER(), 'Se insertó un turno');
 END;
 //
 
@@ -213,10 +241,8 @@ CREATE TRIGGER trg_turnos_update
 AFTER UPDATE ON Turnos
 FOR EACH ROW
 BEGIN
-    INSERT INTO Bitacora (tabla_afectada, id_registro, tipo_cambio, usuario, detalles)
-    VALUES ('Turnos', NEW.id_turno, 'UPDATE', USER(),
-            CONCAT('Antes: fecha=', OLD.fecha, ', tipo_turno=', OLD.tipo_turno,
-                   ' | Después: fecha=', NEW.fecha, ', tipo_turno=', NEW.tipo_turno));
+    INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
+    VALUES ('Turnos', 'UPDATE', USER(), 'Se actualizó un turno');
 END;
 //
 
@@ -224,9 +250,8 @@ CREATE TRIGGER trg_turnos_delete
 AFTER DELETE ON Turnos
 FOR EACH ROW
 BEGIN
-    INSERT INTO Bitacora (tabla_afectada, id_registro, tipo_cambio, usuario, detalles)
-    VALUES ('Turnos', OLD.id_turno, 'DELETE', USER(),
-            CONCAT('id_empleado=', OLD.id_empleado, ', fecha=', OLD.fecha, ', tipo_turno=', OLD.tipo_turno));
+    INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
+    VALUES ('Turnos', 'DELETE', USER(), 'Se eliminó un turno');
 END;
 //
 DELIMITER ;
@@ -237,9 +262,8 @@ CREATE TRIGGER trg_registro_asistencia_insert
 AFTER INSERT ON Registro_Asistencia
 FOR EACH ROW
 BEGIN
-    INSERT INTO Bitacora (tabla_afectada, id_registro, tipo_cambio, usuario, detalles)
-    VALUES ('Registro_Asistencia', NEW.id_registro, 'INSERT', USER(),
-            CONCAT('id_empleado=', NEW.id_empleado, ', fecha=', NEW.fecha, ', horas_trabajadas=', NEW.horas_trabajadas));
+    INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
+    VALUES ('Registro_Asistencia', 'INSERT', USER(), 'Se insertó un registro de asistencia');
 END;
 //
 
@@ -247,10 +271,8 @@ CREATE TRIGGER trg_registro_asistencia_update
 AFTER UPDATE ON Registro_Asistencia
 FOR EACH ROW
 BEGIN
-    INSERT INTO Bitacora (tabla_afectada, id_registro, tipo_cambio, usuario, detalles)
-    VALUES ('Registro_Asistencia', NEW.id_registro, 'UPDATE', USER(),
-            CONCAT('Antes: fecha=', OLD.fecha, ', horas_trabajadas=', OLD.horas_trabajadas,
-                   ' | Después: fecha=', NEW.fecha, ', horas_trabajadas=', NEW.horas_trabajadas));
+    INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
+    VALUES ('Registro_Asistencia', 'UPDATE', USER(), 'Se actualizó un registro de asistencia');
 END;
 //
 
@@ -258,9 +280,8 @@ CREATE TRIGGER trg_registro_asistencia_delete
 AFTER DELETE ON Registro_Asistencia
 FOR EACH ROW
 BEGIN
-    INSERT INTO Bitacora (tabla_afectada, id_registro, tipo_cambio, usuario, detalles)
-    VALUES ('Registro_Asistencia', OLD.id_registro, 'DELETE', USER(),
-            CONCAT('id_empleado=', OLD.id_empleado, ', fecha=', OLD.fecha, ', horas_trabajadas=', OLD.horas_trabajadas));
+    INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
+    VALUES ('Registro_Asistencia', 'DELETE', USER(), 'Se eliminó un registro de asistencia');
 END;
 //
 DELIMITER ;
@@ -271,9 +292,8 @@ CREATE TRIGGER trg_incidencias_insert
 AFTER INSERT ON Incidencias
 FOR EACH ROW
 BEGIN
-    INSERT INTO Bitacora (tabla_afectada, id_registro, tipo_cambio, usuario, detalles)
-    VALUES ('Incidencias', NEW.id_incidencia, 'INSERT', USER(),
-            CONCAT('id_empleado=', NEW.id_empleado, ', tipo_incidencia=', NEW.tipo_incidencia, ', fecha_incidencia=', NEW.fecha_incidencia));
+    INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
+    VALUES ('Incidencias', 'INSERT', USER(), 'Se insertó una incidencia');
 END;
 //
 
@@ -281,20 +301,19 @@ CREATE TRIGGER trg_incidencias_update
 AFTER UPDATE ON Incidencias
 FOR EACH ROW
 BEGIN
-    INSERT INTO Bitacora (tabla_afectada, id_registro, tipo_cambio, usuario, detalles)
-    VALUES ('Incidencias', NEW.id_incidencia, 'UPDATE', USER(),
-            CONCAT('Antes: tipo_incidencia=', OLD.tipo_incidencia, ', fecha_incidencia=', OLD.fecha_incidencia,
-                   ' | Después: tipo_incidencia=', NEW.tipo_incidencia, ', fecha_incidencia=', NEW.fecha_incidencia));
-END;//
+    INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
+    VALUES ('Incidencias', 'UPDATE', USER(), 'Se actualizó una incidencia');
+END;
+//
 
 CREATE TRIGGER trg_incidencias_delete
 AFTER DELETE ON Incidencias
 FOR EACH ROW
 BEGIN
-    INSERT INTO Bitacora (tabla_afectada, id_registro, tipo_cambio, usuario, detalles)
-    VALUES ('Incidencias', OLD.id_incidencia, 'DELETE', USER(),
-            CONCAT('id_empleado=', OLD.id_empleado, ', tipo_incidencia=', OLD.tipo_incidencia, ', fecha_incidencia=', OLD.fecha_incidencia));
-END;//
+    INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
+    VALUES ('Incidencias', 'DELETE', USER(), 'Se eliminó una incidencia');
+END;
+//
 DELIMITER ;
 
 -- Vista 1: Lista de empleados con sus turnos asignados
@@ -349,23 +368,23 @@ LEFT JOIN
 ORDER BY 
     e.apellido, e.nombre, i.fecha_incidencia;
 
--- Vista 4: Administradores y su última actividad
-CREATE VIEW Vista_Actividad_Administradores AS
+-- Vista 4: Usuarios y su última actividad (modificada para usar la tabla Usuario)
+CREATE VIEW Vista_Actividad_Usuarios AS
 SELECT 
     e.nombre, 
     e.apellido, 
-    a.login, 
-    a.ultima_actividad
+    u.login, 
+    u.ultima_actividad
 FROM 
     Empleado e
 INNER JOIN 
-    Administrador a ON e.id_empleado = a.id_empleado
+    Usuario u ON e.id_empleado = u.id_empleado
 INNER JOIN
     Rol r ON e.id_rol = r.id_rol
 WHERE 
-    r.nombre = 'administrador'
+    r.nombre = 'admin'
 ORDER BY 
-    a.ultima_actividad DESC;
+    u.ultima_actividad DESC;
 
 -- Vista 5: Resumen de asistencia diaria
 CREATE VIEW Vista_Resumen_Asistencia_Diaria AS
@@ -620,7 +639,7 @@ BEGIN
     DELETE FROM Registro_Asistencia WHERE id_empleado = p_id_empleado;
     DELETE FROM Incidencias WHERE id_empleado = p_id_empleado;
     DELETE FROM Turnos WHERE id_empleado = p_id_empleado;
-    DELETE FROM Administrador WHERE id_empleado = p_id_empleado;
+    DELETE FROM Usuario WHERE id_empleado = p_id_empleado;
     DELETE FROM Empleado WHERE id_empleado = p_id_empleado;
 END;
 //
@@ -700,12 +719,13 @@ END;
 //
 DELIMITER ;
 
--- Procedimiento adicional: Insertar administrador
+-- Procedimiento adicional: Insertar usuario
 DELIMITER //
-CREATE PROCEDURE InsertarAdministrador(
+CREATE PROCEDURE InsertarUsuario(
     IN p_id_empleado INT,
     IN p_login VARCHAR(50),
-    IN p_password VARCHAR(256)
+    IN p_password VARCHAR(256),
+    IN p_rol_aplicacion ENUM('cajero', 'admin', 'supervisor')
 )
 BEGIN
     DECLARE v_count INT;
@@ -716,8 +736,8 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El empleado especificado no existe';
     END IF;
 
-    INSERT INTO Administrador (id_empleado, login, password, ultima_actividad)
-    VALUES (p_id_empleado, p_login, SHA2(p_password, 256), NOW());
+    INSERT INTO Usuario (id_empleado, login, password, rol_aplicacion, ultima_actividad)
+    VALUES (p_id_empleado, p_login, SHA2(p_password, 256), p_rol_aplicacion, NOW());
 END;
 //
 DELIMITER ;
@@ -783,7 +803,7 @@ END;
 //
 DELIMITER ;
 
--- Función 4: Verificar si un empleado es administrador
+-- Función 4: Verificar si un empleado es admin
 DELIMITER //
 CREATE FUNCTION EsAdministrador(p_id_empleado INT)
 RETURNS BOOLEAN
@@ -791,14 +811,14 @@ DETERMINISTIC
 BEGIN
     DECLARE es_admin BOOLEAN;
     
-    SELECT CASE WHEN r.nombre = 'administrador' THEN TRUE ELSE FALSE END
+    SELECT CASE WHEN u.rol_aplicacion = 'admin' THEN TRUE ELSE FALSE END
     INTO es_admin
     FROM Empleado e
-    JOIN Rol r ON e.id_rol = r.id_rol
+    JOIN Usuario u ON e.id_empleado = u.id_empleado
     WHERE e.id_empleado = p_id_empleado;
     
     IF es_admin IS NULL THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El empleado especificado no existe';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El empleado especificado no existe o no es usuario';
     END IF;
     
     RETURN es_admin;
@@ -907,16 +927,16 @@ END;
 //
 DELIMITER ;
 
--- Función 10: Obtener login de administrador
+-- Función 10: Obtener login de admin
 DELIMITER //
 CREATE FUNCTION ObtenerLoginAdmin(p_id_empleado INT)
 RETURNS VARCHAR(50)
 DETERMINISTIC
 BEGIN
     DECLARE login_usr VARCHAR(50);
-    SELECT login INTO login_usr FROM Administrador WHERE id_empleado = p_id_empleado;
+    SELECT login INTO login_usr FROM Usuario WHERE id_empleado = p_id_empleado AND rol_aplicacion = 'admin';
     IF login_usr IS NULL THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El empleado no es administrador';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El empleado no es admin';
     END IF;
     RETURN login_usr;
 END;
@@ -927,7 +947,7 @@ DELIMITER ;
 SELECT * FROM Vista_Turnos_Empleados;
 SELECT * FROM Vista_Horas_Trabajadas_Mes;
 SELECT * FROM Vista_Incidencias_Empleados;
-SELECT * FROM Vista_Actividad_Administradores;
+SELECT * FROM Vista_Actividad_Usuarios;
 SELECT * FROM Vista_Resumen_Asistencia_Diaria;
 SELECT * FROM Vista_Empleados_Con_Multiples_Incidencias;
 SELECT * FROM Vista_Turnos_Por_Tipo;
@@ -938,39 +958,41 @@ SELECT * FROM Vista_Dias_Trabajados;
 SELECT ObtenerNombreCompleto(2);
 SELECT CalcularHorasTrabajadas('08:00:00', '12:30:00');
 SELECT ContarIncidenciasEmpleado(1);
-SELECT EsAdministrador(4);
+SELECT EsAdministrador(1);
 SELECT TotalHorasTrabajadasEmpleado(2, '2025-04-01', '2025-04-30');
 SELECT ObtenerDetallesEmpleado(1);
 SELECT ObtenerTipoTurno(1);
-SELECT ContarEmpleadosPorRol('administrador');
+SELECT ContarEmpleadosPorRol('admin');
 SELECT PorcentajeAsistenciaMensual(1, '2025-04-01');
-SELECT ObtenerLoginAdmin(2);
+SELECT ObtenerLoginAdmin(1);
 
 -- Ejemplo de uso de procedimientos almacenados
-CALL InsertarEmpleado('Sofía', 'Ramírez', '99887766', 'sofia.ramirez@empresa.com', '678-901-2345', 'Calle 6, Ciudad F', 'empleado');
-CALL ActualizarEmpleado(1, 'Juan', 'Pérez Modificado', 'juan.nuevo@empresa.com', '999-888-7777', 'Calle Nueva, Ciudad A', 'empleado');
+CALL InsertarEmpleado('Sofía', 'Ramírez', '99887766', 'sofia.ramirez@empresa.com', '678-901-2345', 'Calle 6, Ciudad F', 'cajero');
+CALL ActualizarEmpleado(1, 'Gerson', 'Pérez Modificado', 'gerson.nuevo@empresa.com', '999-888-7777', 'Calle Nueva, Ciudad A', 'admin');
 CALL RegistrarAsistencia(1, 1, '2025-04-11', '08:00:00', '12:00:00');
 CALL RegistrarIncidencia(1, 'retraso', 'Llegó tarde por problemas de transporte', '2025-04-11');
 CALL HistorialAsistenciaEmpleado(1);
-CALL EliminarEmpleado(1);
+CALL EliminarEmpleado(4);
 CALL ConsultarIncidenciasPorTipo('retraso');
-CALL CambiarRolEmpleado(3, 'administrador');
-CALL ConsultarEmpleadosPorRol('empleado');
+CALL CambiarRolEmpleado(3, 'admin');
+CALL ConsultarEmpleadosPorRol('cajero');
 CALL ResumenAsistenciaPorFecha('2025-04-09');
-CALL InsertarAdministrador(3, 'carlos.lopez', 'carlos789');
+CALL InsertarUsuario(3, 'carlos.lopez', 'carlos789', 'cajero');
 
 -- Consultas para seleccionar todos los registros de las tablas
 SELECT * FROM Empleado;
-SELECT * FROM Administrador;
+SELECT * FROM Usuario;
 SELECT * FROM Turnos;
 SELECT * FROM Registro_Asistencia;
 SELECT * FROM Incidencias;
 SELECT * FROM Bitacora;
 
+-- Consultas finales para verificar la base de datos
 SELECT DATABASE();
 SHOW TABLES;
-SHOW TRIGGERS IN BDESRH_bakenversion;
+SHOW TRIGGERS IN BD_backend;
 
-USE BDESRH_bakenversion;
-CALL InsertarEmpleado('Prueba', 'Usuario', '77777777', 'prueba@empresa.com', '111-222-3333', 'Calle Prueba', 'empleado');
-SELECT * FROM BDESRH_bakenversion.Bitacora;
+-- Ejemplo de inserción y consulta en Bitacora
+USE BD_backend;
+CALL InsertarEmpleado('Prueba', 'Usuario', '77777777', 'prueba@empresa.com', '111-222-3333', 'Calle Prueba', 'cajero');
+SELECT * FROM BD_backend.Bitacora;
