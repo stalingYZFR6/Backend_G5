@@ -46,8 +46,11 @@ CREATE TABLE Turnos (
     FOREIGN KEY (id_empleado) REFERENCES Empleado(id_empleado)
 );
 
+RENAME TABLE Registro_Asistencia TO RegistroAsistencia;
+
+
 -- Crear tabla Registro_Asistencia
-CREATE TABLE Registro_Asistencia (
+CREATE TABLE RegistroAsistencia (
     id_registro INT PRIMARY KEY AUTO_INCREMENT,
     id_empleado INT NOT NULL,
     id_turno INT NOT NULL,
@@ -135,9 +138,13 @@ INSERT INTO Empleado (nombre, apellido, cedula, correo, telefono, direccion, id_
 
 -- Inserciones en Usuario
 INSERT INTO Usuario (id_empleado, login, password, rol_aplicacion, ultima_actividad) VALUES
-    (1, 'gerson', SHA2('gerson123', 256), 'admin', NOW()),
-    (2, 'staling', SHA2('staling123', 256), 'cajero', NOW()),
-    (3, 'magdi', SHA2('magdi123', 256), 'supervisor', NOW());
+    (1, 'gerson', ('gerson123'), 'admin', NOW()),
+    (2, 'staling', ('staling123'), 'cajero', NOW()),
+    (3, 'magdi', ('magdi123'), 'supervisor', NOW());
+-- Borrar un usuario por su id_usuario
+DELETE  FROM Usuario;
+TRUNCATE TABLE Usuario;
+
 
 -- Inserciones en Turnos
 INSERT INTO Turnos (id_empleado, fecha, hora_inicio, hora_fin, tipo_turno) VALUES
@@ -256,10 +263,10 @@ END;
 //
 DELIMITER ;
 
--- Triggers para Registro_Asistencia
+-- Triggers para RegistroAsistencia
 DELIMITER //
 CREATE TRIGGER trg_registro_asistencia_insert
-AFTER INSERT ON Registro_Asistencia
+AFTER INSERT ON RegistroAsistencia
 FOR EACH ROW
 BEGIN
     INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
@@ -268,7 +275,7 @@ END;
 //
 
 CREATE TRIGGER trg_registro_asistencia_update
-AFTER UPDATE ON Registro_Asistencia
+AFTER UPDATE ON RegistroAsistencia
 FOR EACH ROW
 BEGIN
     INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
@@ -277,7 +284,7 @@ END;
 //
 
 CREATE TRIGGER trg_registro_asistencia_delete
-AFTER DELETE ON Registro_Asistencia
+AFTER DELETE ON RegistroAsistencia
 FOR EACH ROW
 BEGIN
     INSERT INTO Bitacora (tabla_afectada, tipo_cambio, usuario, detalles)
@@ -465,483 +472,234 @@ JOIN
 GROUP BY 
     e.id_empleado;
 
--- Procedimiento 1: Insertar un nuevo empleado
 DELIMITER //
+
+-- =========================
+-- Tabla Rol
+-- =========================
+
+CREATE PROCEDURE InsertarRol(IN p_nombre VARCHAR(25))
+BEGIN
+    INSERT INTO Rol(nombre) VALUES(p_nombre);
+END;
+//
+
+CREATE PROCEDURE ActualizarRol(IN p_id_rol INT, IN p_nombre VARCHAR(25))
+BEGIN
+    UPDATE Rol SET nombre = p_nombre WHERE id_rol = p_id_rol;
+END;
+//
+
+CREATE PROCEDURE EliminarRol(IN p_id_rol INT)
+BEGIN
+    DELETE FROM Rol WHERE id_rol = p_id_rol;
+END;
+//
+
+-- =========================
+-- Tabla Empleado
+-- =========================
+
 CREATE PROCEDURE InsertarEmpleado(
     IN p_nombre VARCHAR(50),
     IN p_apellido VARCHAR(50),
-    IN p_cedula VARCHAR(20),
+    IN p_cedula VARCHAR(18),
     IN p_correo VARCHAR(100),
-    IN p_telefono VARCHAR(20),
-    IN p_direccion VARCHAR(200),
-    IN p_rol VARCHAR(20)
+    IN p_telefono VARCHAR(12),
+    IN p_direccion VARCHAR(90),
+    IN p_id_rol INT
 )
 BEGIN
-    DECLARE v_id_rol INT;
-    DECLARE EXIT HANDLER FOR NOT FOUND 
-    BEGIN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El rol especificado no existe';
-    END;
-    SELECT id_rol INTO v_id_rol FROM Rol WHERE nombre = p_rol;
-    INSERT INTO Empleado (nombre, apellido, cedula, correo, telefono, direccion, id_rol)
-    VALUES (p_nombre, p_apellido, p_cedula, p_correo, p_telefono, p_direccion, v_id_rol);
+    INSERT INTO Empleado(nombre, apellido, cedula, correo, telefono, direccion, id_rol)
+    VALUES(p_nombre, p_apellido, p_cedula, p_correo, p_telefono, p_direccion, p_id_rol);
 END;
 //
-DELIMITER ;
 
--- Procedimiento 2: Registrar asistencia
-DELIMITER //
-CREATE PROCEDURE RegistrarAsistencia(
-    IN p_id_empleado INT,
-    IN p_id_turno INT,
-    IN p_fecha DATE,
-    IN p_hora_entrada TIME,
-    IN p_hora_salida TIME
-)
-BEGIN
-    DECLARE horas_trabajadas FLOAT;
-    DECLARE start_datetime DATETIME;
-    DECLARE end_datetime DATETIME;
-    DECLARE v_count INT;
-
-    -- Validar existencia de id_empleado
-    SELECT COUNT(*) INTO v_count FROM Empleado WHERE id_empleado = p_id_empleado;
-    IF v_count = 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El empleado especificado no existe';
-    END IF;
-
-    -- Validar existencia de id_turno
-    SELECT COUNT(*) INTO v_count FROM Turnos WHERE id_turno = p_id_turno;
-    IF v_count = 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El turno especificado no existe';
-    END IF;
-
-    SET start_datetime = CONCAT('2000-01-01 ', p_hora_entrada);
-    SET end_datetime = CONCAT('2000-01-01 ', p_hora_salida);
-
-    IF p_hora_salida <= p_hora_entrada THEN
-        SET end_datetime = DATE_ADD(end_datetime, INTERVAL 1 DAY);
-    END IF;
-
-    SET horas_trabajadas = TIMESTAMPDIFF(MINUTE, start_datetime, end_datetime) / 60;
-
-    INSERT INTO Registro_Asistencia (id_empleado, id_turno, fecha, hora_entrada, hora_salida, horas_trabajadas)
-    VALUES (p_id_empleado, p_id_turno, p_fecha, p_hora_entrada, p_hora_salida, horas_trabajadas);
-END;
-//
-DELIMITER ;
-
--- Procedimiento 3: Actualizar los datos de un empleado
-DELIMITER //
 CREATE PROCEDURE ActualizarEmpleado(
     IN p_id_empleado INT,
     IN p_nombre VARCHAR(50),
     IN p_apellido VARCHAR(50),
     IN p_correo VARCHAR(100),
-    IN p_telefono VARCHAR(20),
-    IN p_direccion VARCHAR(200),
-    IN p_rol VARCHAR(20)
+    IN p_telefono VARCHAR(12),
+    IN p_direccion VARCHAR(90),
+    IN p_id_rol INT
 )
 BEGIN
-    DECLARE v_id_rol INT;
-    DECLARE v_count INT;
-
-    -- Validar existencia de id_empleado
-    SELECT COUNT(*) INTO v_count FROM Empleado WHERE id_empleado = p_id_empleado;
-    IF v_count = 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El empleado especificado no existe';
-    END IF;
-
-    -- Validar existencia de rol
-    SELECT id_rol INTO v_id_rol FROM Rol WHERE nombre = p_rol;
-    IF v_id_rol IS NULL THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El rol especificado no existe';
-    END IF;
-
     UPDATE Empleado
-    SET
-        nombre = p_nombre,
+    SET nombre = p_nombre,
         apellido = p_apellido,
         correo = p_correo,
         telefono = p_telefono,
         direccion = p_direccion,
-        id_rol = v_id_rol
+        id_rol = p_id_rol
     WHERE id_empleado = p_id_empleado;
 END;
 //
-DELIMITER ;
 
--- Procedimiento 4: Registrar una incidencia
-DELIMITER //
-CREATE PROCEDURE RegistrarIncidencia(
+CREATE PROCEDURE EliminarEmpleado(IN p_id_empleado INT)
+BEGIN
+    DELETE FROM Empleado WHERE id_empleado = p_id_empleado;
+END;
+//
+
+-- =========================
+-- Tabla Usuario
+-- =========================
+
+CREATE PROCEDURE InsertarUsuario(
+    IN p_id_empleado INT,
+    IN p_login VARCHAR(50),
+    IN p_password VARCHAR(256),
+    IN p_rol_aplicacion ENUM('cajero','admin','supervisor')
+)
+BEGIN
+    INSERT INTO Usuario(id_empleado, login, password, rol_aplicacion, ultima_actividad)
+    VALUES(p_id_empleado, p_login, SHA2(p_password, 256), p_rol_aplicacion, NOW());
+END;
+//
+
+CREATE PROCEDURE ActualizarUsuario(
+    IN p_id_usuario INT,
+    IN p_login VARCHAR(50),
+    IN p_password VARCHAR(256),
+    IN p_rol_aplicacion ENUM('cajero','admin','supervisor')
+)
+BEGIN
+    UPDATE Usuario
+    SET login = p_login,
+        password = SHA2(p_password, 256),
+        rol_aplicacion = p_rol_aplicacion,
+        ultima_actividad = NOW()
+    WHERE id_usuario = p_id_usuario;
+END;
+//
+
+CREATE PROCEDURE EliminarUsuario(IN p_id_usuario INT)
+BEGIN
+    DELETE FROM Usuario WHERE id_usuario = p_id_usuario;
+END;
+//
+
+-- =========================
+-- Tabla Turnos
+-- =========================
+
+CREATE PROCEDURE InsertarTurno(
+    IN p_id_empleado INT,
+    IN p_fecha DATE,
+    IN p_hora_inicio TIME,
+    IN p_hora_fin TIME,
+    IN p_tipo_turno VARCHAR(20)
+)
+BEGIN
+    INSERT INTO Turnos(id_empleado, fecha, hora_inicio, hora_fin, tipo_turno)
+    VALUES(p_id_empleado, p_fecha, p_hora_inicio, p_hora_fin, p_tipo_turno);
+END;
+//
+
+CREATE PROCEDURE ActualizarTurno(
+    IN p_id_turno INT,
+    IN p_id_empleado INT,
+    IN p_fecha DATE,
+    IN p_hora_inicio TIME,
+    IN p_hora_fin TIME,
+    IN p_tipo_turno VARCHAR(20)
+)
+BEGIN
+    UPDATE Turnos
+    SET id_empleado = p_id_empleado,
+        fecha = p_fecha,
+        hora_inicio = p_hora_inicio,
+        hora_fin = p_hora_fin,
+        tipo_turno = p_tipo_turno
+    WHERE id_turno = p_id_turno;
+END;
+//
+
+CREATE PROCEDURE EliminarTurno(IN p_id_turno INT)
+BEGIN
+    DELETE FROM Turnos WHERE id_turno = p_id_turno;
+END;
+//
+
+-- =========================
+-- Tabla RegistroAsistencia
+-- =========================
+
+CREATE PROCEDURE InsertarRegistroAsistencia(
+    IN p_id_empleado INT,
+    IN p_id_turno INT,
+    IN p_fecha DATE,
+    IN p_hora_entrada TIME,
+    IN p_hora_salida TIME,
+    IN p_horas_trabajadas FLOAT
+)
+BEGIN
+    INSERT INTO RegistroAsistencia(id_empleado, id_turno, fecha, hora_entrada, hora_salida, horas_trabajadas)
+    VALUES(p_id_empleado, p_id_turno, p_fecha, p_hora_entrada, p_hora_salida, p_horas_trabajadas);
+END;
+//
+
+CREATE PROCEDURE ActualizarRegistroAsistencia(
+    IN p_id_registro INT,
+    IN p_hora_entrada TIME,
+    IN p_hora_salida TIME,
+    IN p_horas_trabajadas FLOAT
+)
+BEGIN
+    UPDATE RegistroAsistencia
+    SET hora_entrada = p_hora_entrada,
+        hora_salida = p_hora_salida,
+        horas_trabajadas = p_horas_trabajadas
+    WHERE id_registro = p_id_registro;
+END;
+//
+
+CREATE PROCEDURE EliminarRegistroAsistencia(IN p_id_registro INT)
+BEGIN
+    DELETE FROM RegistroAsistencia WHERE id_registro = p_id_registro;
+END;
+//
+
+-- =========================
+-- Tabla Incidencias
+-- =========================
+
+CREATE PROCEDURE InsertarIncidencia(
     IN p_id_empleado INT,
     IN p_tipo_incidencia VARCHAR(50),
     IN p_descripcion TEXT,
     IN p_fecha_incidencia DATE
 )
 BEGIN
-    DECLARE v_count INT;
-
-    -- Validar existencia de id_empleado
-    SELECT COUNT(*) INTO v_count FROM Empleado WHERE id_empleado = p_id_empleado;
-    IF v_count = 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El empleado especificado no existe';
-    END IF;
-
-    INSERT INTO Incidencias (id_empleado, tipo_incidencia, descripcion, fecha_incidencia)
-    VALUES (p_id_empleado, p_tipo_incidencia, p_descripcion, p_fecha_incidencia);
+    INSERT INTO Incidencias(id_empleado, tipo_incidencia, descripcion, fecha_incidencia)
+    VALUES(p_id_empleado, p_tipo_incidencia, p_descripcion, p_fecha_incidencia);
 END;
 //
-DELIMITER ;
 
--- Procedimiento 5: Consultar historial de asistencias de un empleado
-DELIMITER //
-CREATE PROCEDURE HistorialAsistenciaEmpleado(
-    IN p_id_empleado INT
+CREATE PROCEDURE ActualizarIncidencia(
+    IN p_id_incidencia INT,
+    IN p_tipo_incidencia VARCHAR(50),
+    IN p_descripcion TEXT,
+    IN p_fecha_incidencia DATE
 )
 BEGIN
-    DECLARE v_count INT;
-
-    -- Validar existencia de id_empleado
-    SELECT COUNT(*) INTO v_count FROM Empleado WHERE id_empleado = p_id_empleado;
-    IF v_count = 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El empleado especificado no existe';
-    END IF;
-
-    SELECT 
-        CONCAT(e.nombre, ' ', e.apellido) AS nombre_completo,
-        ra.fecha, 
-        ra.hora_entrada, 
-        ra.hora_salida, 
-        ra.horas_trabajadas
-    FROM Registro_Asistencia ra
-    JOIN Empleado e ON ra.id_empleado = e.id_empleado
-    WHERE ra.id_empleado = p_id_empleado
-    ORDER BY ra.fecha DESC;
+    UPDATE Incidencias
+    SET tipo_incidencia = p_tipo_incidencia,
+        descripcion = p_descripcion,
+        fecha_incidencia = p_fecha_incidencia
+    WHERE id_incidencia = p_id_incidencia;
 END;
 //
-DELIMITER ;
 
--- Procedimiento 6: Elimina un empleado dado su ID
-DELIMITER //
-CREATE PROCEDURE EliminarEmpleado(
-    IN p_id_empleado INT
-)
+CREATE PROCEDURE EliminarIncidencia(IN p_id_incidencia INT)
 BEGIN
-    DECLARE v_count INT;
-
-    -- Validar existencia de id_empleado
-    SELECT COUNT(*) INTO v_count FROM Empleado WHERE id_empleado = p_id_empleado;
-    IF v_count = 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El empleado especificado no existe';
-    END IF;
-
-    DELETE FROM Registro_Asistencia WHERE id_empleado = p_id_empleado;
-    DELETE FROM Incidencias WHERE id_empleado = p_id_empleado;
-    DELETE FROM Turnos WHERE id_empleado = p_id_empleado;
-    DELETE FROM Usuario WHERE id_empleado = p_id_empleado;
-    DELETE FROM Empleado WHERE id_empleado = p_id_empleado;
+    DELETE FROM Incidencias WHERE id_incidencia = p_id_incidencia;
 END;
 //
+
 DELIMITER ;
 
--- Procedimiento 7: Consulta todas las incidencias de un tipo específico
-DELIMITER //
-CREATE PROCEDURE ConsultarIncidenciasPorTipo(IN p_tipo VARCHAR(50))
-BEGIN
-    SELECT * FROM Incidencias WHERE tipo_incidencia = p_tipo;
-END;
-//
-DELIMITER ;
-
--- Procedimiento 8: Cambiar rol de empleado
-DELIMITER //
-CREATE PROCEDURE CambiarRolEmpleado(IN p_id_empleado INT, IN p_nuevo_rol VARCHAR(20))
-BEGIN
-    DECLARE v_id_rol INT;
-    DECLARE v_count INT;
-
-    -- Validar existencia de id_empleado
-    SELECT COUNT(*) INTO v_count FROM Empleado WHERE id_empleado = p_id_empleado;
-    IF v_count = 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El empleado especificado no existe';
-    END IF;
-
-    -- Validar existencia de rol
-    SELECT id_rol INTO v_id_rol FROM Rol WHERE nombre = p_nuevo_rol;
-    IF v_id_rol IS NULL THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El rol especificado no existe';
-    END IF;
-
-    UPDATE Empleado SET id_rol = v_id_rol WHERE id_empleado = p_id_empleado;
-END;
-//
-DELIMITER ;
-
--- Procedimiento 9: Consultar empleados por rol
-DELIMITER //
-CREATE PROCEDURE ConsultarEmpleadosPorRol(IN p_rol VARCHAR(20))
-BEGIN
-    DECLARE v_count INT;
-
-    -- Validar existencia de rol
-    SELECT COUNT(*) INTO v_count FROM Rol WHERE nombre = p_rol;
-    IF v_count = 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El rol especificado no existe';
-    END IF;
-
-    SELECT e.* FROM Empleado e
-    JOIN Rol r ON e.id_rol = r.id_rol
-    WHERE r.nombre = p_rol;
-END;
-//
-DELIMITER ;
-
--- Procedimiento 10: Obtener resumen de asistencia por fecha
-DELIMITER //
-CREATE PROCEDURE ResumenAsistenciaPorFecha(
-    IN p_fecha DATE
-)
-BEGIN
-    SELECT
-        e.nombre,
-        e.apellido,
-        ra.hora_entrada,
-        ra.hora_salida,
-        ra.horas_trabajadas
-    FROM
-        Empleado e
-    JOIN
-        Registro_Asistencia ra ON e.id_empleado = ra.id_empleado
-    WHERE
-        ra.fecha = p_fecha;
-END;
-//
-DELIMITER ;
-
--- Procedimiento adicional: Insertar usuario
-DELIMITER //
-CREATE PROCEDURE InsertarUsuario(
-    IN p_id_empleado INT,
-    IN p_login VARCHAR(50),
-    IN p_password VARCHAR(256),
-    IN p_rol_aplicacion ENUM('cajero', 'admin', 'supervisor')
-)
-BEGIN
-    DECLARE v_count INT;
-
-    -- Validar existencia de id_empleado
-    SELECT COUNT(*) INTO v_count FROM Empleado WHERE id_empleado = p_id_empleado;
-    IF v_count = 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El empleado especificado no existe';
-    END IF;
-
-    INSERT INTO Usuario (id_empleado, login, password, rol_aplicacion, ultima_actividad)
-    VALUES (p_id_empleado, p_login, SHA2(p_password, 256), p_rol_aplicacion, NOW());
-END;
-//
-DELIMITER ;
-
--- Función 1: Obtener el nombre completo de un empleado
-DELIMITER //
-CREATE FUNCTION ObtenerNombreCompleto(p_id_empleado INT)
-RETURNS VARCHAR(120)
-DETERMINISTIC
-BEGIN
-    DECLARE nombre_completo VARCHAR(120);
-    
-    SELECT CONCAT(nombre, ' ', apellido)
-    INTO nombre_completo
-    FROM Empleado
-    WHERE id_empleado = p_id_empleado;
-    
-    IF nombre_completo IS NULL THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El empleado especificado no existe';
-    END IF;
-    
-    RETURN nombre_completo;
-END;
-//
-DELIMITER ;
-
--- Función 2: Calcular la duración (en horas) entre dos horas
-DELIMITER //
-CREATE FUNCTION CalcularHorasTrabajadas(p_hora_inicio TIME, p_hora_fin TIME)
-RETURNS FLOAT
-DETERMINISTIC
-BEGIN
-    DECLARE start_datetime DATETIME;
-    DECLARE end_datetime DATETIME;
-
-    SET start_datetime = CONCAT('2000-01-01 ', p_hora_inicio);
-    SET end_datetime = CONCAT('2000-01-01 ', p_hora_fin);
-
-    IF p_hora_fin <= p_hora_inicio THEN
-        SET end_datetime = DATE_ADD(end_datetime, INTERVAL 1 DAY);
-    END IF;
-
-    RETURN TIMESTAMPDIFF(MINUTE, start_datetime, end_datetime) / 60;
-END;
-//
-DELIMITER ;
-
--- Función 3: Contar el número de incidencias de un empleado
-DELIMITER //
-CREATE FUNCTION ContarIncidenciasEmpleado(p_id_empleado INT)
-RETURNS INT
-DETERMINISTIC
-BEGIN
-    DECLARE total_incidencias INT;
-    
-    SELECT COUNT(*)
-    INTO total_incidencias
-    FROM Incidencias
-    WHERE id_empleado = p_id_empleado;
-    
-    RETURN total_incidencias;
-END;
-//
-DELIMITER ;
-
--- Función 4: Verificar si un empleado es admin
-DELIMITER //
-CREATE FUNCTION EsAdministrador(p_id_empleado INT)
-RETURNS BOOLEAN
-DETERMINISTIC
-BEGIN
-    DECLARE es_admin BOOLEAN;
-    
-    SELECT CASE WHEN u.rol_aplicacion = 'admin' THEN TRUE ELSE FALSE END
-    INTO es_admin
-    FROM Empleado e
-    JOIN Usuario u ON e.id_empleado = u.id_empleado
-    WHERE e.id_empleado = p_id_empleado;
-    
-    IF es_admin IS NULL THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El empleado especificado no existe o no es usuario';
-    END IF;
-    
-    RETURN es_admin;
-END;
-//
-DELIMITER ;
-
--- Función 5: Obtener el total de horas trabajadas por un empleado en un rango de fechas
-DELIMITER //
-CREATE FUNCTION TotalHorasTrabajadasEmpleado(p_id_empleado INT, p_fecha_inicio DATE, p_fecha_fin DATE)
-RETURNS FLOAT
-DETERMINISTIC
-BEGIN
-    DECLARE total_horas FLOAT;
-    
-    SELECT COALESCE(SUM(horas_trabajadas), 0)
-    INTO total_horas
-    FROM Registro_Asistencia
-    WHERE id_empleado = p_id_empleado
-      AND fecha BETWEEN p_fecha_inicio AND p_fecha_fin;
-      
-    RETURN total_horas;
-END;
-//
-DELIMITER ;
-
--- Función 6: Obtener los detalles completos de un empleado
-DELIMITER //
-CREATE FUNCTION ObtenerDetallesEmpleado(p_id_empleado INT)
-RETURNS VARCHAR(500)
-DETERMINISTIC
-BEGIN
-    DECLARE detalles VARCHAR(500);
-    
-    SELECT CONCAT(nombre, ' ', apellido, ' | Cédula: ', cedula, ' | Correo: ', correo, ' | Teléfono: ', telefono, ' | Dirección: ', direccion)
-    INTO detalles
-    FROM Empleado
-    WHERE id_empleado = p_id_empleado;
-    
-    IF detalles IS NULL THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El empleado especificado no existe';
-    END IF;
-    
-    RETURN detalles;
-END;
-//
-DELIMITER ;
-
--- Función 7: Obtener tipo de turno por ID de turno
-DELIMITER //
-CREATE FUNCTION ObtenerTipoTurno(p_id_turno INT)
-RETURNS VARCHAR(20)
-DETERMINISTIC
-BEGIN
-    DECLARE tipo VARCHAR(20);
-    SELECT tipo_turno INTO tipo FROM Turnos WHERE id_turno = p_id_turno;
-    IF tipo IS NULL THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El turno especificado no existe';
-    END IF;
-    RETURN tipo;
-END;
-//
-DELIMITER ;
-
--- Función 8: Contar empleados por rol
-DELIMITER //
-CREATE FUNCTION ContarEmpleadosPorRol(
-    p_rol VARCHAR(20)
-)
-RETURNS INT
-DETERMINISTIC
-BEGIN
-    DECLARE total INT;
-    SELECT COUNT(*) INTO total
-    FROM Empleado e
-    JOIN Rol r ON e.id_rol = r.id_rol
-    WHERE r.nombre = p_rol;
-    RETURN total;
-END;
-//
-DELIMITER ;
-
--- Función 9: Calcular porcentaje de asistencia de un empleado en un mes
-DELIMITER //
-CREATE FUNCTION PorcentajeAsistenciaMensual(p_id_empleado INT, p_mes DATE)
-RETURNS FLOAT
-DETERMINISTIC
-BEGIN
-    DECLARE dias_presentes INT;
-    DECLARE dias_mes INT;
-
-    SELECT COUNT(DISTINCT fecha) INTO dias_presentes
-    FROM Registro_Asistencia
-    WHERE id_empleado = p_id_empleado
-      AND MONTH(fecha) = MONTH(p_mes)
-      AND YEAR(fecha) = YEAR(p_mes);
-      
-    SET dias_mes = DAY(LAST_DAY(p_mes));
-    
-    IF dias_presentes IS NULL THEN
-        SET dias_presentes = 0;
-    END IF;
-    
-    RETURN (dias_presentes / dias_mes) * 100;
-END;
-//
-DELIMITER ;
-
--- Función 10: Obtener login de admin
-DELIMITER //
-CREATE FUNCTION ObtenerLoginAdmin(p_id_empleado INT)
-RETURNS VARCHAR(50)
-DETERMINISTIC
-BEGIN
-    DECLARE login_usr VARCHAR(50);
-    SELECT login INTO login_usr FROM Usuario WHERE id_empleado = p_id_empleado AND rol_aplicacion = 'admin';
-    IF login_usr IS NULL THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El empleado no es admin';
-    END IF;
-    RETURN login_usr;
-END;
-//
-DELIMITER ;
 
 -- Consultas de ejemplo para verificar las vistas
 SELECT * FROM Vista_Turnos_Empleados;
@@ -983,7 +741,7 @@ CALL InsertarUsuario(3, 'carlos.lopez', 'carlos789', 'cajero');
 SELECT * FROM Empleado;
 SELECT * FROM Usuario;
 SELECT * FROM Turnos;
-SELECT * FROM Registro_Asistencia;
+SELECT * FROM RegistroAsistencia;
 SELECT * FROM Incidencias;
 SELECT * FROM Bitacora;
 

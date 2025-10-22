@@ -6,7 +6,7 @@ import cors from "cors";
 import rutasEmpleados from "./src/routes/empleados.routes.js";
 import rutasRoles from "./src/routes/roles.routes.js";
 import rutasTurnos from "./src/routes/turnos.routes.js";
-import rutasRegistroAsistencia from "./src/routes/registro_asistencia.routes.js";
+import rutasRegistroAsistencia from "./src/routes/registroAsistencia.routes.js";
 import rutasIncidencias from "./src/routes/incidencias.routes.js";
 import rutasBitacora from "./src/routes/bitacora.routes.js";
 import rutasUsuarios from "./src/routes/usuarios.routes.js";
