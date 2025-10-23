@@ -156,7 +156,7 @@ INSERT INTO Turnos (id_empleado, fecha, hora_inicio, hora_fin, tipo_turno) VALUE
     (6, '2025-04-11', '08:00:00', '16:00:00', 'flexible');
 
 -- Inserciones en Registro_Asistencia
-INSERT INTO Registro_Asistencia (id_empleado, id_turno, fecha, hora_entrada, hora_salida, horas_trabajadas) VALUES
+INSERT INTO RegistroAsistencia (id_empleado, id_turno, fecha, hora_entrada, hora_salida, horas_trabajadas) VALUES
     (1, 1, '2025-04-09', '08:05:00', '12:00:00', 3.92),
     (2, 2, '2025-04-09', '14:00:00', '18:10:00', 4.17),
     (3, 3, '2025-04-09', '20:00:00', '23:55:00', 3.92),
