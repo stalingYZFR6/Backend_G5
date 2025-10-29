@@ -25,12 +25,12 @@ export const obtenerTurno = async (req, res) => {
 // Crear un nuevo turno
 export const crearTurno = async (req, res) => {
   try {
-    const { id_empleado, fecha, hora_inicio, hora_fin, tipo } = req.body;
+    const { id_empleado, fecha, hora_inicio, hora_fin, tipo_turno } = req.body;
     const [result] = await pool.query(
       "INSERT INTO Turnos (id_empleado, fecha, hora_inicio, hora_fin, tipo_turno) VALUES (?, ?, ?, ?, ?)",
-      [id_empleado, fecha, hora_inicio, hora_fin, tipo]
+      [id_empleado, fecha, hora_inicio, hora_fin, tipo_turno]
     );
-    res.json({ id: result.insertId, id_empleado, fecha, hora_inicio, hora_fin, tipo });
+    res.json({ id: result.insertId, id_empleado, fecha, hora_inicio, hora_fin, tipo_turno });
   } catch (error) {
     return res.status(500).json({ message: "Error al crear turno" });
   }
