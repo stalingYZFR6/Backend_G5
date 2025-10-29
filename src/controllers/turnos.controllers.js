@@ -27,7 +27,7 @@ export const crearTurno = async (req, res) => {
   try {
     const { id_empleado, fecha, hora_inicio, hora_fin, tipo } = req.body;
     const [result] = await pool.query(
-      "INSERT INTO Turnos (id_empleado, fecha, hora_inicio, hora_fin, tipo) VALUES (?, ?, ?, ?, ?)",
+      "INSERT INTO Turnos (id_empleado, fecha, hora_inicio, hora_fin, tipo_turno) VALUES (?, ?, ?, ?, ?)",
       [id_empleado, fecha, hora_inicio, hora_fin, tipo]
     );
     res.json({ id: result.insertId, id_empleado, fecha, hora_inicio, hora_fin, tipo });
@@ -53,7 +53,7 @@ export const actualizarTurno = async (req, res) => {
   try {
     const { id_empleado, fecha, hora_inicio, hora_fin, tipo } = req.body;
     const [result] = await pool.query(
-      "UPDATE Turnos SET id_empleado = ?, fecha = ?, hora_inicio = ?, hora_fin = ?, tipo = ? WHERE id_turno = ?",
+      "UPDATE Turnos SET id_empleado = ?, fecha = ?, hora_inicio = ?, hora_fin = ?, tipo_turno = ? WHERE id_turno = ?",
       [id_empleado, fecha, hora_inicio, hora_fin, tipo, req.params.id_turno]
     );
     if (result.affectedRows <= 0)
