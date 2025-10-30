@@ -22,20 +22,61 @@ export const obtenerRegistroAsistencia = async (req, res) => {
   }
 };
 
-// Crear un nuevo registro
+// Crear un nuevo registro de asistencia
 export const crearRegistroAsistencia = async (req, res) => {
   try {
-    const { id_empleado, fecha, hora_entrada, hora_salida } = req.body;
-    const [result] = await pool.query(
-      "INSERT INTO RegistroAsistencia (id_empleado, fecha, hora_entrada, hora_salida) VALUES (?, ?, ?, ?)",
-      [id_empleado, fecha, hora_entrada, hora_salida]
+    const { id_empleado, id_turno, fecha, hora_entrada, hora_salida } = req.body;
+
+    // Validación básica de datos
+    if (!id_empleado || !id_turno || !fecha || !hora_entrada || !hora_salida) {
+      return res.status(400).json({ message: "Todos los campos son obligatorios" });
+    }
+
+    // Validar que id_empleado exista en la tabla Empleado
+    const [empleadoExist] = await pool.query(
+      "SELECT id_empleado FROM Empleado WHERE id_empleado = ?",
+      [id_empleado]
     );
-    res.json({ id: result.insertId, id_empleado, fecha, hora_entrada, hora_salida });
+    if (empleadoExist.length === 0) {
+      return res.status(400).json({ message: "El empleado no existe" });
+    }
+
+    // Validar que id_turno exista en la tabla Turnos
+    const [turnoExist] = await pool.query(
+      "SELECT id_turno FROM Turnos WHERE id_turno = ?",
+      [id_turno]
+    );
+    if (turnoExist.length === 0) {
+      return res.status(400).json({ message: "El turno no existe" });
+    }
+
+    // Calcular horas trabajadas (en decimal, por ejemplo)
+    const entrada = new Date(`1970-01-01T${hora_entrada}:00`);
+    const salida = new Date(`1970-01-01T${hora_salida}:00`);
+    let horas_trabajadas = (salida - entrada) / (1000 * 60 * 60); // diferencia en horas
+    if (horas_trabajadas < 0) horas_trabajadas += 24; // si el turno pasa de medianoche
+
+    // Insertar registro
+    const [result] = await pool.query(
+      "INSERT INTO RegistroAsistencia (id_empleado, id_turno, fecha, hora_entrada, hora_salida, horas_trabajadas) VALUES (?, ?, ?, ?, ?, ?)",
+      [id_empleado, id_turno, fecha, hora_entrada, hora_salida, horas_trabajadas]
+    );
+
+    res.json({
+      id: result.insertId,
+      id_empleado,
+      id_turno,
+      fecha,
+      hora_entrada,
+      hora_salida,
+      horas_trabajadas,
+    });
+
   } catch (error) {
+    console.error("Error al crear registro de asistencia:", error);
     return res.status(500).json({ message: "Error al crear registro de asistencia" });
   }
 };
-
 // Eliminar un registro
 export const eliminarRegistroAsistencia = async (req, res) => {
   try {

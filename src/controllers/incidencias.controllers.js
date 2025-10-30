@@ -25,13 +25,21 @@ export const obtenerIncidencia = async (req, res) => {
 // Crear nueva incidencia
 export const crearIncidencia = async (req, res) => {
   try {
-    const { id_empleado, fecha, descripcion, estado } = req.body;
+    const { id_empleado, tipo_incidencia, descripcion, fecha_incidencia } = req.body;
     const [result] = await pool.query(
-      "INSERT INTO Incidencias (id_empleado, fecha, descripcion, estado) VALUES (?, ?, ?, ?)",
-      [id_empleado, fecha, descripcion, estado]
+      "INSERT INTO Incidencias (id_empleado, tipo_incidencia, descripcion, fecha_incidencia) VALUES (?, ?, ?, ?)",
+      [id_empleado, tipo_incidencia, descripcion, fecha_incidencia]
     );
-    res.json({ id: result.insertId, id_empleado, fecha, descripcion, estado });
+
+    res.json({
+      id: result.insertId,
+      id_empleado,
+      tipo_incidencia,
+      descripcion,
+      fecha_incidencia
+    });
   } catch (error) {
+    console.error("Error al crear incidencia:", error);
     return res.status(500).json({ message: "Error al crear incidencia" });
   }
 };
