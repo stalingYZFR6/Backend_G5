@@ -43,8 +43,9 @@ export const crearUsuario = async (req, res) => {
 
     res.status(201).json({ id: result.insertId, id_empleado, login, rol_aplicacion });
   } catch (error) {
+    // Cambio aquí: mostrar el error real
     console.error(error);
-    return res.status(500).json({ message: "Error al crear usuario" });
+    return res.status(500).json({ message: error.message, stack: error.stack });
   }
 };
 
