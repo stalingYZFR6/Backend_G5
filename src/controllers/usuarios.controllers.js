@@ -65,15 +65,21 @@ export const eliminarUsuario = async (req, res) => {
 // Actualizar un usuario (PUT)
 export const actualizarUsuario = async (req, res) => {
   try {
-    const { nombre, apellido, correo, contraseña, rol } = req.body;
+    const { id_empleado, login, password, rol_aplicacion } = req.body;
+
     const [result] = await pool.query(
-      "UPDATE Usuario SET nombre = ?, apellido = ?, correo = ?, contraseña = ?, rol = ? WHERE id_usuario = ?",
-      [nombre, apellido, correo, contraseña, rol, req.params.id_usuario]
+      `UPDATE Usuario 
+       SET id_empleado = ?, login = ?, password = ?, rol_aplicacion = ? 
+       WHERE id_usuario = ?`,
+      [id_empleado, login, password, rol_aplicacion, req.params.id_usuario]
     );
+
     if (result.affectedRows <= 0)
       return res.status(404).json({ message: "Usuario no encontrado" });
+
     res.json({ message: "Usuario actualizado correctamente" });
   } catch (error) {
+    console.error(error);
     return res.status(500).json({ message: "Error al actualizar usuario" });
   }
 };
