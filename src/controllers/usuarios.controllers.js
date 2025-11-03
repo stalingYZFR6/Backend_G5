@@ -25,16 +25,29 @@ export const obtenerUsuario = async (req, res) => {
 // Crear un nuevo usuario
 export const crearUsuario = async (req, res) => {
   try {
-    const { nombre, apellido, correo, contraseña, rol } = req.body;
+    const { id_empleado, login, password, rol_aplicacion } = req.body;
+
+    // Validar que el empleado exista
+    const [empleado] = await pool.query("SELECT * FROM Empleado WHERE id_empleado = ?", [id_empleado]);
+    if (empleado.length === 0) return res.status(400).json({ message: "Empleado no existe" });
+
+    // Validar login único
+    const [usuarioExistente] = await pool.query("SELECT * FROM Usuario WHERE login = ?", [login]);
+    if (usuarioExistente.length > 0) return res.status(400).json({ message: "Login ya existe" });
+
+    // Insertar usuario
     const [result] = await pool.query(
-      "INSERT INTO Usuario (nombre, apellido, correo, contraseña, rol) VALUES (?, ?, ?, ?, ?)",
-      [nombre, apellido, correo, contraseña, rol]
+      "INSERT INTO Usuario (id_empleado, login, password, rol_aplicacion) VALUES (?, ?, ?, ?)",
+      [id_empleado, login, password, rol_aplicacion || "cajero"]
     );
-    res.json({ id: result.insertId, nombre, apellido, correo, rol });
+
+    res.status(201).json({ id: result.insertId, id_empleado, login, rol_aplicacion });
   } catch (error) {
+    console.error(error);
     return res.status(500).json({ message: "Error al crear usuario" });
   }
 };
+
 
 // Eliminar un usuario
 export const eliminarUsuario = async (req, res) => {
