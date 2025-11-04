@@ -59,18 +59,29 @@ export const eliminarIncidencia = async (req, res) => {
 // Actualizar incidencia (PUT)
 export const actualizarIncidencia = async (req, res) => {
   try {
-    const { id_empleado, fecha, descripcion, estado } = req.body;
+    let { id_empleado, tipo_incidencia, descripcion, fecha_incidencia } = req.body;
+
+    // Convertir fecha a formato 'YYYY-MM-DD' para MySQL
+    if (fecha_incidencia.includes('T')) {
+      fecha_incidencia = fecha_incidencia.split('T')[0];
+    }
+
     const [result] = await pool.query(
-      "UPDATE Incidencias SET id_empleado = ?, fecha = ?, descripcion = ?, estado = ? WHERE id_incidencia = ?",
-      [id_empleado, fecha, descripcion, estado, req.params.id_incidencia]
+      "UPDATE Incidencias SET id_empleado = ?, tipo_incidencia = ?, descripcion = ?, fecha_incidencia = ? WHERE id_incidencia = ?",
+      [id_empleado, tipo_incidencia, descripcion, fecha_incidencia, req.params.id_incidencia]
     );
+
     if (result.affectedRows <= 0)
       return res.status(404).json({ message: "Incidencia no encontrada" });
+
     res.json({ message: "Incidencia actualizada correctamente" });
   } catch (error) {
+    console.error("Error al actualizar incidencia:", error);
     return res.status(500).json({ message: "Error al actualizar incidencia" });
   }
 };
+
+
 
 // Actualización parcial (PATCH)
 export const patchIncidencia = async (req, res) => {

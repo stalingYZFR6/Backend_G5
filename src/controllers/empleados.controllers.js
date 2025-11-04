@@ -22,19 +22,49 @@ export const obtenerEmpleado = async (req, res) => {
   }
 };
 
-// Crear un nuevo empleado
-export const crearEmpleado = async (req, res) => {
-  try {
-    const { nombre, apellido, cargo, fecha_ingreso, estado } = req.body;
-    const [result] = await pool.query(
-      "INSERT INTO Empleado (nombre, apellido, cargo, fecha_ingreso, estado) VALUES (?, ?, ?, ?, ?)",
-      [nombre, apellido, cargo, fecha_ingreso, estado]
-    );
-    res.json({ id: result.insertId, nombre, apellido, cargo, fecha_ingreso, estado });
-  } catch (error) {
-    return res.status(500).json({ message: "Error al crear empleado" });
-  }
-};
+  // Crear un nuevo empleado
+  export const crearEmpleado = async (req, res) => {
+    try {
+      const { nombre, apellido, cedula, correo, telefono, direccion, id_rol } = req.body;
+
+      // Validaciones básicas
+      if (!nombre || !apellido || !cedula || !id_rol) {
+        return res.status(400).json({
+          message: "Nombre, apellido, cédula y rol son obligatorios",
+        });
+      }
+
+      // Insertar en la base de datos
+      const [result] = await pool.query(
+        `INSERT INTO Empleado 
+          (nombre, apellido, cedula, correo, telefono, direccion, id_rol) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [nombre, apellido, cedula, correo || null, telefono || null, direccion || null, id_rol]
+      );
+
+      res.status(201).json({
+        message: "Empleado creado correctamente",
+        empleado: { id: result.insertId, nombre, apellido, cedula, correo, telefono, direccion, id_rol },
+      });
+    } catch (error) {
+      // Capturar errores de clave foránea o duplicados
+      if (error.code === "ER_NO_REFERENCED_ROW_2") {
+        return res.status(400).json({
+          message: `El rol con id ${req.body.id_rol} no existe`,
+        });
+      }
+      if (error.code === "ER_DUP_ENTRY") {
+        return res.status(400).json({
+          message: `Ya existe un empleado con la cédula ${req.body.cedula}`,
+        });
+      }
+
+      // Otros errores
+      console.error("Error al crear empleado:", error);
+      return res.status(500).json({ message: "Error interno al crear empleado", error: error.message });
+    }
+  };
+
 
 // Eliminar un empleado por ID
 export const eliminarEmpleado = async (req, res) => {
@@ -48,21 +78,29 @@ export const eliminarEmpleado = async (req, res) => {
   }
 };
 
-// Actualizar un empleado (PUT → todos los campos)
+// Actualizar un empleado (PUT)
 export const actualizarEmpleado = async (req, res) => {
   try {
-    const { nombre, apellido, cargo, fecha_ingreso, estado } = req.body;
+    const { nombre, apellido, cedula, correo, telefono, direccion, id_rol } = req.body;
+
     const [result] = await pool.query(
-      "UPDATE Empleado SET nombre = ?, apellido = ?, cargo = ?, fecha_ingreso = ?, estado = ? WHERE id_empleado = ?",
-      [nombre, apellido, cargo, fecha_ingreso, estado, req.params.id_empleado]
+      `UPDATE Empleado 
+        SET nombre = ?, apellido = ?, cedula = ?, correo = ?, telefono = ?, direccion = ?, id_rol = ?
+        WHERE id_empleado = ?`,
+      [nombre, apellido, cedula, correo, telefono, direccion, id_rol, req.params.id_empleado]
     );
-    if (result.affectedRows <= 0)
+
+    if (result.affectedRows <= 0) {
       return res.status(404).json({ message: "Empleado no encontrado" });
+    }
+
     res.json({ message: "Empleado actualizado correctamente" });
   } catch (error) {
+    console.error("Error al actualizar empleado:", error);
     return res.status(500).json({ message: "Error al actualizar empleado" });
   }
 };
+
 
 // Actualizar parcialmente un empleado (PATCH)
 export const patchEmpleado = async (req, res) => {

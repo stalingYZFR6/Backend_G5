@@ -87,23 +87,51 @@ export const eliminarRegistroAsistencia = async (req, res) => {
   } catch (error) {
     return res.status(500).json({ message: "Error al eliminar registro de asistencia" });
   }
-};
+  };
+  // Actualizar un registro de asistencia (PUT)
+  export const actualizarRegistroAsistencia = async (req, res) => {
+    try {
+      const { id_empleado, id_turno, fecha, hora_entrada, hora_salida } = req.body;
 
-// Actualizar un registro (PUT)
-export const actualizarRegistroAsistencia = async (req, res) => {
-  try {
-    const { id_empleado, fecha, hora_entrada, hora_salida } = req.body;
-    const [result] = await pool.query(
-      "UPDATE RegistroAsistencia SET id_empleado = ?, fecha = ?, hora_entrada = ?, hora_salida = ? WHERE id_registro = ?",
-      [id_empleado, fecha, hora_entrada, hora_salida, req.params.id_registro]
-    );
-    if (result.affectedRows <= 0)
-      return res.status(404).json({ message: "Registro de asistencia no encontrado" });
-    res.json({ message: "Registro de asistencia actualizado correctamente" });
-  } catch (error) {
-    return res.status(500).json({ message: "Error al actualizar registro de asistencia" });
-  }
-};
+      if (!id_empleado || !id_turno || !fecha) {
+        return res.status(400).json({ message: "Faltan campos obligatorios (empleado, turno o fecha)" });
+      }
+
+      // Formatear la fecha a YYYY-MM-DD
+      const fechaFormateada = fecha.includes('T') ? fecha.split('T')[0] : fecha;
+
+      // Calcular horas trabajadas si hay entrada y salida
+      let horas_trabajadas = null;
+      if (hora_entrada && hora_salida) {
+        const inicio = new Date(`1970-01-01T${hora_entrada}`);
+        const fin = new Date(`1970-01-01T${hora_salida}`);
+        const diferencia = (fin - inicio) / (1000 * 60 * 60); // horas
+        horas_trabajadas = diferencia > 0 ? parseFloat(diferencia.toFixed(2)) : 0;
+      }
+
+      const [result] = await pool.query(
+        `UPDATE RegistroAsistencia 
+        SET id_empleado = ?, id_turno = ?, fecha = ?, hora_entrada = ?, hora_salida = ?, horas_trabajadas = ?
+        WHERE id_registro = ?`,
+        [id_empleado, id_turno, fechaFormateada, hora_entrada, hora_salida, horas_trabajadas, req.params.id_registro]
+      );
+
+      if (result.affectedRows <= 0) {
+        return res.status(404).json({ message: "Registro de asistencia no encontrado" });
+      }
+
+      res.json({ message: " Registro de asistencia actualizado correctamente" });
+    } catch (error) {
+      console.error("Error al actualizar registro de asistencia:", error);
+      // Devuelve el mensaje real del error y stack para depuración
+      return res.status(500).json({
+        message: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+
 
 // Actualización parcial (PATCH)
 export const patchRegistroAsistencia = async (req, res) => {
