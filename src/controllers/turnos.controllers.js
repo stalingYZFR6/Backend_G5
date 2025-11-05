@@ -1,14 +1,29 @@
 import { pool } from "../../db_conection.js";
 
-// Obtener todos los turnos
+// Obtener todos los turnos (con nombre del empleado)
 export const obtenerTurnos = async (req, res) => {
   try {
-    const [result] = await pool.query("SELECT * FROM Turnos");
+    const [result] = await pool.query(`
+      SELECT 
+        t.id_turno,
+        t.id_empleado,
+        e.nombre AS nombre_empleado,
+        e.apellido AS apellido_empleado,
+        t.fecha,
+        t.hora_inicio,
+        t.hora_fin,
+        t.tipo_turno
+      FROM Turnos t
+      INNER JOIN Empleado e ON t.id_empleado = e.id_empleado
+      ORDER BY t.fecha DESC
+    `);
     res.json(result);
   } catch (error) {
+    console.error("Error al obtener turnos:", error);
     return res.status(500).json({ message: "Error al obtener turnos" });
   }
 };
+
 
 // Obtener un turno por ID
 export const obtenerTurno = async (req, res) => {
@@ -37,16 +52,25 @@ export const crearTurno = async (req, res) => {
 };
 
 // Eliminar un turno
-export const eliminarTurno = async (req, res) => {
-  try {
-    const [result] = await pool.query("DELETE FROM Turnos WHERE id_turno = ?", [req.params.id_turno]);
-    if (result.affectedRows <= 0)
-      return res.status(404).json({ message: "Turno no encontrado" });
-    res.json({ message: "Turno eliminado correctamente" });
-  } catch (error) {
-    return res.status(500).json({ message: "Error al eliminar turno" });
-  }
-};
+  export const eliminarTurno = async (req, res) => {
+    try {
+      const [result] = await pool.query(
+        "DELETE FROM Turnos WHERE id_turno = ?",
+        [req.params.id_turno]
+      );
+
+      if (result.affectedRows <= 0)
+        return res.status(404).json({ message: "Turno no encontrado" });
+
+      res.json({ message: "Turno eliminado correctamente" });
+    } catch (error) {
+      console.error("Error al eliminar turno:", error); // Muestra en consola
+      return res.status(500).json({
+        message: "Error al eliminar turno",
+        error: error.message,    // Devuelve el error verdadero al frontend
+      });
+    }
+  };
 
   // Actualizar un turno (PUT)
   export const actualizarTurno = async (req, res) => {
