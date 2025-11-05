@@ -48,21 +48,29 @@ export const eliminarTurno = async (req, res) => {
   }
 };
 
-// Actualizar un turno (PUT)
-export const actualizarTurno = async (req, res) => {
-  try {
-    const { id_empleado, fecha, hora_inicio, hora_fin, tipo } = req.body;
-    const [result] = await pool.query(
-      "UPDATE Turnos SET id_empleado = ?, fecha = ?, hora_inicio = ?, hora_fin = ?, tipo_turno = ? WHERE id_turno = ?",
-      [id_empleado, fecha, hora_inicio, hora_fin, tipo, req.params.id_turno]
-    );
-    if (result.affectedRows <= 0)
-      return res.status(404).json({ message: "Turno no encontrado" });
-    res.json({ message: "Turno actualizado correctamente" });
-  } catch (error) {
-    return res.status(500).json({ message: "Error al actualizar turno" });
-  }
-};
+  // Actualizar un turno (PUT)
+  export const actualizarTurno = async (req, res) => {
+    try {
+      const { id_empleado, fecha, hora_inicio, hora_fin, tipo_turno } = req.body;
+
+      const [result] = await pool.query(
+        `UPDATE Turnos 
+        SET id_empleado = ?, fecha = ?, hora_inicio = ?, hora_fin = ?, tipo_turno = ? 
+        WHERE id_turno = ?`,
+        [id_empleado, fecha, hora_inicio, hora_fin, tipo_turno, req.params.id_turno]
+      );
+
+      if (result.affectedRows <= 0) {
+        return res.status(404).json({ message: "Turno no encontrado" });
+      }
+
+      res.json({ message: "Turno actualizado correctamente" });
+    } catch (error) {
+      console.error("Error al actualizar turno:", error);
+      return res.status(500).json({ message: "Error al actualizar turno" });
+    }
+  };
+
 
 // Actualización parcial (PATCH)
 export const patchTurno = async (req, res) => {
