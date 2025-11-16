@@ -6,3 +6,7 @@ ADD CONSTRAINT registroasistencia_ibfk_2
 FOREIGN KEY (id_turno)
 REFERENCES Turnos(id_turno)
 ON DELETE CASCADE;
+
+// para foto 
+ALTER TABLE Empleado
+ADD COLUMN foto LONGTEXT;
