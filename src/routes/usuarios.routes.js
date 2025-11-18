@@ -5,6 +5,7 @@ import {
   crearUsuario, 
   eliminarUsuario, 
   actualizarUsuario, 
+  verificarUsuario,
   patchUsuario 
 } from "../controllers/usuarios.controllers.js"; // controller en singular
 
@@ -17,5 +18,6 @@ router.post("/usuarios", crearUsuario);                  // Crear un nuevo usuar
 router.delete("/usuarios/:id_usuario", eliminarUsuario); // Eliminar usuario
 router.put("/usuarios/:id_usuario", actualizarUsuario);  // Actualizar usuario completo
 router.patch("/usuarios/:id_usuario", patchUsuario);     // Actualización parcial
+router.post('/verificarUsuario', verificarUsuario); // verificar usuario 
 
 export default router;
