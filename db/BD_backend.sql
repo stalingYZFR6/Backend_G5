@@ -11,19 +11,6 @@ CREATE TABLE Rol (
     nombre VARCHAR(25) NOT NULL UNIQUE
 );
 
-SELECT 
-  ra.id_registro,
-  ra.id_empleado,
-  e.nombre,
-  e.apellido,
-  ra.id_turno,
-  t.tipo_turno,
-  t.hora_fin
-FROM RegistroAsistencia ra
-LEFT JOIN Empleado e ON ra.id_empleado = e.id_empleado
-LEFT JOIN Turnos t ON ra.id_turno = t.id_turno
-LIMIT 5;
-
 -- Crear tabla Empleado
 CREATE TABLE Empleado (
     id_empleado INT PRIMARY KEY AUTO_INCREMENT,
@@ -34,11 +21,10 @@ CREATE TABLE Empleado (
     telefono VARCHAR(12),
     direccion VARCHAR(90),
     id_rol INT NOT NULL,
-    
     FOREIGN KEY (id_rol) REFERENCES Rol(id_rol)
 );
-ALTER TABLE Empleado
-ADD COLUMN foto LONGTEXT;
+-- ALTER correspondiente a Empleado
+ALTER TABLE Empleado ADD COLUMN foto LONGTEXT;
 
 -- Crear tabla Usuario
 CREATE TABLE Usuario (
@@ -61,7 +47,11 @@ CREATE TABLE Turnos (
     tipo_turno VARCHAR(20) NOT NULL CHECK (tipo_turno IN ('mañana', 'tarde', 'noche', 'flexible')),
     FOREIGN KEY (id_empleado) REFERENCES Empleado(id_empleado)
 );
+-- ALTER correspondientes a Turnos
+ALTER TABLE Turnos ADD COLUMN horas_trabajadas DECIMAL(5,2) DEFAULT 0;
+ALTER TABLE Turnos ADD COLUMN estado ENUM('activo','completado') DEFAULT 'activo';
 
+-- Tabla TurnosCompletados (queda tal cual)
 CREATE TABLE TurnosCompletados (
     id INT AUTO_INCREMENT PRIMARY KEY,
     id_empleado INT NOT NULL,
@@ -73,20 +63,7 @@ CREATE TABLE TurnosCompletados (
     FOREIGN KEY (id_empleado) REFERENCES Empleado(id_empleado)
 );
 
-
-
-ALTER TABLE Turnos
-ADD COLUMN horas_trabajadas DECIMAL(5,2) DEFAULT 0;
-
-
-ALTER TABLE Turnos
-ADD COLUMN estado ENUM('activo','completado') DEFAULT 'activo';
-
-
-RENAME TABLE Registro_Asistencia TO RegistroAsistencia;
-
-
--- Crear tabla Registro_Asistencia
+-- Crear tabla RegistroAsistencia
 CREATE TABLE RegistroAsistencia (
     id_registro INT PRIMARY KEY AUTO_INCREMENT,
     id_empleado INT NOT NULL,
@@ -98,8 +75,6 @@ CREATE TABLE RegistroAsistencia (
     FOREIGN KEY (id_empleado) REFERENCES Empleado(id_empleado),
     FOREIGN KEY (id_turno) REFERENCES Turnos(id_turno)
 );
-
-
 
 -- Crear tabla Incidencias
 CREATE TABLE Incidencias (
@@ -122,7 +97,7 @@ CREATE TABLE Bitacora (
     CONSTRAINT chk_tipo_cambio CHECK (tipo_cambio IN ('INSERT', 'UPDATE', 'DELETE'))
 );
 
--- 1. Tabla de jornadas (una por día)
+-- 1. Tabla de jornadas
 CREATE TABLE IF NOT EXISTS jornadas_asistencia (
     id_jornada INT AUTO_INCREMENT PRIMARY KEY,
     fecha DATE NOT NULL UNIQUE,
@@ -130,8 +105,8 @@ CREATE TABLE IF NOT EXISTS jornadas_asistencia (
     estado ENUM('abierta', 'cerrada') DEFAULT 'abierta'
 );
 
--- 2. Detalle: quién marcó qué
-CREATE TABLE  detalle_asistencia (
+-- 2. Detalle de asistencia
+CREATE TABLE detalle_asistencia (
     id_detalle INT AUTO_INCREMENT PRIMARY KEY,
     id_jornada INT NOT NULL,
     id_empleado INT NOT NULL,
@@ -142,6 +117,7 @@ CREATE TABLE  detalle_asistencia (
     FOREIGN KEY (id_empleado) REFERENCES Empleado(id_empleado),
     UNIQUE KEY unico_empleado_dia (id_jornada, id_empleado)
 );
+
 
 
 -- Crea jornadas para todas las fechas que ya tienes
@@ -164,7 +140,9 @@ SELECT
 FROM RegistroAsistencia ra
 JOIN jornadas_asistencia j ON ra.fecha = j.fecha;
 
+ 
 -- Crear índices para mejorar rendimiento
+-- esto no lo creé Profe eliad pero asi funciona bien sin crear esto 
 CREATE INDEX idx_registro_asistencia_fecha ON Registro_Asistencia(fecha);
 CREATE INDEX idx_registro_asistencia_id_empleado ON Registro_Asistencia(id_empleado);
 CREATE INDEX idx_incidencias_id_empleado ON Incidencias(id_empleado);
