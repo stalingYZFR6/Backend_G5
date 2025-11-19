@@ -11,6 +11,19 @@ CREATE TABLE Rol (
     nombre VARCHAR(25) NOT NULL UNIQUE
 );
 
+SELECT 
+  ra.id_registro,
+  ra.id_empleado,
+  e.nombre,
+  e.apellido,
+  ra.id_turno,
+  t.tipo_turno,
+  t.hora_fin
+FROM RegistroAsistencia ra
+LEFT JOIN Empleado e ON ra.id_empleado = e.id_empleado
+LEFT JOIN Turnos t ON ra.id_turno = t.id_turno
+LIMIT 5;
+
 -- Crear tabla Empleado
 CREATE TABLE Empleado (
     id_empleado INT PRIMARY KEY AUTO_INCREMENT,
@@ -21,8 +34,11 @@ CREATE TABLE Empleado (
     telefono VARCHAR(12),
     direccion VARCHAR(90),
     id_rol INT NOT NULL,
+    
     FOREIGN KEY (id_rol) REFERENCES Rol(id_rol)
 );
+ALTER TABLE Empleado
+ADD COLUMN foto LONGTEXT;
 
 -- Crear tabla Usuario
 CREATE TABLE Usuario (
@@ -46,6 +62,27 @@ CREATE TABLE Turnos (
     FOREIGN KEY (id_empleado) REFERENCES Empleado(id_empleado)
 );
 
+CREATE TABLE TurnosCompletados (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    id_empleado INT NOT NULL,
+    fecha DATE NOT NULL,
+    hora_inicio TIME NOT NULL,
+    hora_fin TIME NOT NULL,
+    horas_trabajadas DECIMAL(5,2) NOT NULL,
+    tipo_turno VARCHAR(20),
+    FOREIGN KEY (id_empleado) REFERENCES Empleado(id_empleado)
+);
+
+
+
+ALTER TABLE Turnos
+ADD COLUMN horas_trabajadas DECIMAL(5,2) DEFAULT 0;
+
+
+ALTER TABLE Turnos
+ADD COLUMN estado ENUM('activo','completado') DEFAULT 'activo';
+
+
 RENAME TABLE Registro_Asistencia TO RegistroAsistencia;
 
 
@@ -57,10 +94,12 @@ CREATE TABLE RegistroAsistencia (
     fecha DATE NOT NULL,
     hora_entrada TIME,
     hora_salida TIME,
-    horas_trabajadas FLOAT,
+    horas_trabajadas TIME,
     FOREIGN KEY (id_empleado) REFERENCES Empleado(id_empleado),
     FOREIGN KEY (id_turno) REFERENCES Turnos(id_turno)
 );
+
+
 
 -- Crear tabla Incidencias
 CREATE TABLE Incidencias (
@@ -82,6 +121,48 @@ CREATE TABLE Bitacora (
     detalles TEXT,
     CONSTRAINT chk_tipo_cambio CHECK (tipo_cambio IN ('INSERT', 'UPDATE', 'DELETE'))
 );
+
+-- 1. Tabla de jornadas (una por día)
+CREATE TABLE IF NOT EXISTS jornadas_asistencia (
+    id_jornada INT AUTO_INCREMENT PRIMARY KEY,
+    fecha DATE NOT NULL UNIQUE,
+    creado_el DATETIME DEFAULT CURRENT_TIMESTAMP,
+    estado ENUM('abierta', 'cerrada') DEFAULT 'abierta'
+);
+
+-- 2. Detalle: quién marcó qué
+CREATE TABLE  detalle_asistencia (
+    id_detalle INT AUTO_INCREMENT PRIMARY KEY,
+    id_jornada INT NOT NULL,
+    id_empleado INT NOT NULL,
+    hora_entrada DATETIME NULL,
+    hora_salida DATETIME NULL,
+    horas_trabajadas DECIMAL(6,2) NULL,
+    FOREIGN KEY (id_jornada) REFERENCES jornadas_asistencia(id_jornada) ON DELETE CASCADE,
+    FOREIGN KEY (id_empleado) REFERENCES Empleado(id_empleado),
+    UNIQUE KEY unico_empleado_dia (id_jornada, id_empleado)
+);
+
+
+-- Crea jornadas para todas las fechas que ya tienes
+INSERT IGNORE INTO jornadas_asistencia (fecha, estado)
+SELECT DISTINCT fecha, 'cerrada' FROM RegistroAsistencia;
+
+-- Migra los registros antiguos al nuevo sistema
+INSERT INTO detalle_asistencia (id_jornada, id_empleado, hora_entrada, hora_salida, horas_trabajadas)
+SELECT 
+    j.id_jornada,
+    ra.id_empleado,
+    CASE WHEN ra.hora_entrada IS NOT NULL THEN CONCAT(ra.fecha, ' ', ra.hora_entrada) END,
+    CASE WHEN ra.hora_salida IS NOT NULL THEN CONCAT(ra.fecha, ' ', ra.hora_salida) END,
+    CASE 
+        WHEN ra.horas_trabajadas LIKE '%:%' THEN 
+            TIME_TO_SEC(ra.horas_trabajadas) / 3600.0 
+        ELSE 
+            ra.horas_trabajadas 
+    END
+FROM RegistroAsistencia ra
+JOIN jornadas_asistencia j ON ra.fecha = j.fecha;
 
 -- Crear índices para mejorar rendimiento
 CREATE INDEX idx_registro_asistencia_fecha ON Registro_Asistencia(fecha);
@@ -202,6 +283,9 @@ BEGIN
 END;
 //
 DELIMITER ;
+
+
+
 
 -- Triggers para Empleado
 DELIMITER //
@@ -352,7 +436,7 @@ SELECT
 FROM 
     Empleado e
 LEFT JOIN 
-    Registro_Asistencia ra ON e.id_empleado = ra.id_empleado
+    RegistroAsistencia ra ON e.id_empleado = ra.id_empleado
 WHERE 
     ra.fecha BETWEEN '2025-04-01' AND '2025-04-30'
 GROUP BY 
@@ -410,7 +494,7 @@ SELECT
 FROM
     Empleado e
 LEFT JOIN
-    Registro_Asistencia ra ON e.id_empleado = ra.id_empleado
+RegistroAsistencia ra ON e.id_empleado = ra.id_empleado
 ORDER BY
     ra.fecha DESC, e.apellido, e.nombre;
 
@@ -455,7 +539,7 @@ SELECT
 FROM 
     Empleado e
 LEFT JOIN 
-    Registro_Asistencia ra ON e.id_empleado = ra.id_empleado
+    RegistroAsistencia ra ON e.id_empleado = ra.id_empleado
 WHERE 
     ra.hora_entrada IS NULL OR ra.hora_salida IS NULL;
 
@@ -468,7 +552,7 @@ SELECT
 FROM 
     Empleado e
 JOIN 
-    Registro_Asistencia ra ON e.id_empleado = ra.id_empleado
+    RegistroAsistencia ra ON e.id_empleado = ra.id_empleado
 GROUP BY 
     e.id_empleado;
 
@@ -711,6 +795,8 @@ SELECT * FROM Vista_Empleados_Con_Multiples_Incidencias;
 SELECT * FROM Vista_Turnos_Por_Tipo;
 SELECT * FROM Vista_Asistencias_Pendientes;
 SELECT * FROM Vista_Dias_Trabajados;
+
+
 
 -- Consultas de ejemplo para las funciones
 SELECT ObtenerNombreCompleto(2);

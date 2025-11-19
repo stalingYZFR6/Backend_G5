@@ -14,6 +14,8 @@ export const obtenerRegistrosAsistencia = async (req, res) => {
   }
 };
 
+
+
 // Obtener un registro por ID con datos del empleado
 export const obtenerRegistroAsistencia = async (req, res) => {
   try {
